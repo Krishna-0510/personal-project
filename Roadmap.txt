@@ -1,0 +1,472 @@
+Krishna Kirana Stores — Step-by-Step Implementation Roadmap
+Here's your complete implementation plan broken into clear phases. Each step is small, focused, and testable before moving to the next.
+
+🗂️ PHASE 0 — Setup & Accounts (Before Writing Any Code)
+Step 1 — Create all accounts first
+
+GitHub account → create a private repository named krishna-kirana
+MongoDB Atlas → create free cluster → create database user → whitelist your IP
+Firebase → create new project → enable Phone Auth + Google Auth → get config keys
+Twilio → create account → get a WhatsApp sandbox number → note Account SID and Auth Token
+Vercel → connect your GitHub account
+Render → connect your GitHub account
+Cloudflare → add your domain (free plan)
+
+Step 2 — Prepare your local machine
+
+Install Node.js (v18+), Git, VS Code
+Install VS Code extensions: ESLint, Prettier, Tailwind CSS IntelliSense, MongoDB
+Install globally: nodemon, vite
+Create the full folder structure exactly as shown in the prompt before writing any code
+
+Step 3 — Prepare your .env files
+
+Create client/.env and server/.env
+Fill in every variable from the prompt with your real keys
+Add both .env files to .gitignore immediately
+Keep a private offline copy of all keys (notepad/phone)
+
+
+🔧 PHASE 1 — Backend Foundation
+Step 4 — Basic Express server
+
+Create server.js with Express
+Add helmet.js, cors, dotenv, express.json()
+Set CORS to allow only your frontend URL
+Add a test route GET /health that returns { status: "ok" }
+Run server, confirm it works on localhost:5000
+
+Step 5 — MongoDB connection
+
+Connect Mongoose to your Atlas URI
+Test that connection log shows "MongoDB connected"
+Create all 6 models one by one: User, Product, Order, Combo, Coupon, Recharge
+Each model should have all fields from your feature list
+
+Step 6 — Middleware setup
+
+Create verifyToken.js — checks JWT from httpOnly cookie
+Create isAdmin.js — checks if user has admin role
+Create rateLimiter.js — max 5 orders/user/hour, 20/IP/day
+Test each middleware with a simple dummy route
+
+Step 7 — Firebase Admin setup
+
+Install Firebase Admin SDK in server
+Initialize with your service account credentials from .env
+Create a function verifyFirebaseToken(idToken) that returns the user's UID and phone number
+Test it with a dummy token
+
+
+🔐 PHASE 2 — Authentication
+Step 8 — Auth routes (backend)
+
+POST /api/auth/verify-otp → receives Firebase ID token → verifies with Admin SDK → creates/finds user in MongoDB → issues JWT → sets httpOnly cookie
+POST /api/auth/logout → clears cookie
+GET /api/auth/me → returns current user (requires verifyToken middleware)
+
+Step 9 — Firebase frontend setup
+
+Add Firebase config to client/src/firebase/config.js
+Enable Phone Auth with reCAPTCHA in Firebase console
+Enable Google Sign-In in Firebase console
+
+Step 10 — AuthContext
+
+Create AuthContext.jsx with: currentUser, login, logout, loading state
+Wrap entire app in this context in App.jsx
+Handle auto-login on page refresh using stored cookie
+
+Step 11 — Login page
+
+Phone number input → send OTP via Firebase
+OTP input → verify → call backend /verify-otp
+Google Sign-In button → Firebase popup → call same backend route
+Guest browsing: skip login, just close modal
+Protect checkout route: redirect to login if not authenticated
+
+
+📦 PHASE 3 — Products & Categories
+Step 12 — Product API (backend)
+
+GET /api/products → all products with filters (category, search, sort)
+GET /api/products/:id → single product
+POST /api/products → admin only, add product
+PUT /api/products/:id → admin only, update
+DELETE /api/products/:id → admin only
+Add Joi validation to all input routes
+
+Step 13 — Seed your product database
+
+Write a one-time seed script in server/utils/seedProducts.js
+Add all products from the prompt (Rice & Grains, Pulses, Dairy, etc.)
+Add all 3 language names per product (English, Gujarati, Hindi)
+Run it once, verify products appear in MongoDB Atlas
+
+Step 14 — Combo API (backend)
+
+GET /api/combos → all active combos
+POST /api/combos → admin only
+PUT /api/combos/:id → admin only
+Seed the 4 combos from the prompt with their savings amounts
+
+Step 15 — Seasonal product logic
+
+Add fields to Product model: isSeasonal, seasonStart, seasonEnd, seasonalPrice
+Create a MongoDB query that auto-filters seasonal products by today's date
+GET /api/products/seasonal → only products where today is within their season range
+Seed seasonal products for all 5 seasons from the prompt
+
+
+🛒 PHASE 4 — Orders & Cutoff System
+Step 16 — Order API (backend)
+
+POST /api/orders → place order → requires verifyToken
+GET /api/orders/my → customer's own orders
+GET /api/orders → admin only, all orders
+PUT /api/orders/:id/status → admin only, update status
+DELETE /api/orders/:id/cancel → customer cancel within 5 minutes
+
+Step 17 — Order cutoff logic
+
+Create server/utils/scheduler.js
+Use node-cron to run job at 15 21 * * * (9:15 PM IST)
+At cutoff: set a global flag in DB (e.g., a Settings document field ordersOpenForToday: false)
+All new orders after cutoff automatically go to tomorrow's date
+At midnight: reset flag back to true
+Add a GET /api/settings/cutoff-status route that frontend polls
+
+Step 18 — Pickup slot logic
+
+Store slot rules in Settings: Morning 9–11 AM (order by 8 AM), Afternoon 2–4 PM (order by 1 PM), Evening 6–8 PM (order by 5 PM)
+Create utility function getAvailableSlots(now) that returns which slots are still open
+Expose as GET /api/orders/available-slots
+After 9:15 PM, all slots return as tomorrow's slots
+
+
+💬 PHASE 5 — WhatsApp Integration (Twilio)
+Step 19 — Twilio setup
+
+Install Twilio SDK in server
+Create server/utils/whatsapp.js with a sendWhatsApp(to, message) function
+Test by sending a WhatsApp message to your own number
+Set up Twilio webhook URL pointing to POST /api/webhook/whatsapp
+
+Step 20 — Order notification to father
+
+After order is placed in Step 16, call sendWhatsApp with the formatted order message from the prompt
+Include all order details and the reply menu (1–5)
+
+Step 21 — Father's reply webhook
+
+Create POST /api/webhook/whatsapp route
+Parse incoming message: check if sender is father's number
+Match reply number (1–5) to action
+Update order status in MongoDB
+Send appropriate customer notification via WhatsApp
+Test each reply number one by one
+
+Step 22 — Price update via WhatsApp
+
+In the same webhook, detect if message starts with "price" or "prices" or "stock"
+Parse the command format: price [name] [qty] [amount]
+Use fuzzy matching (install fuse.js) to find product by name even with spelling mistakes
+Update product price or stock in MongoDB
+Log change in a PriceChangeLogs collection: timestamp, old price, new price, product
+Send confirmation back to father
+Test with: "price rice 5kg 280"
+
+Step 23 — Daily cutoff WhatsApp to father
+
+In the scheduler from Step 17, after closing orders, calculate today's totals
+Send WhatsApp to father with order count and revenue summary
+Test by temporarily changing cron time to 1 minute from now
+
+Step 24 — Recharge WhatsApp flow
+
+POST /api/recharge/request → saves request to DB, sends WhatsApp to father
+In webhook: detect reply 1 or 2 for recharge (distinguish from order replies using message context)
+Send customer success or failure WhatsApp
+Test full cycle: submit → father gets message → reply → customer gets message
+
+
+🎨 PHASE 6 — Frontend Pages
+Step 25 — App.jsx and routing
+
+Set up React Router with all routes from the folder structure
+Create a PrivateRoute component that redirects to login if not authenticated
+Wrap app in AuthContext and CartContext
+Add admin routes under /admin/* protected by isAdmin check
+
+Step 26 — Navbar
+
+Sticky top navbar with all links from the prompt
+Implement the CSS hover underline effect exactly as shown in the prompt
+Seasonal link: green color #16a34a, leaf emoji
+Cart icon with item count badge (from CartContext)
+Hamburger menu for mobile with same hover effects
+Language toggle button (EN / ગુ / हि)
+Active link detection using React Router's useLocation
+
+Step 27 — CartContext
+
+State: cartItems (array), addItem, removeItem, updateQty, clearCart, totalItems, totalPrice
+Store cart in memory (no localStorage per security rules)
+Cart badge in navbar reads from this context
+
+Step 28 — Home page
+
+Shop name banner and tagline
+Category row with icons (tap to go to Products filtered by category)
+Today's offers section (fetched from API)
+Combo deals section
+Flash sale timer widget (countdown)
+Festival/seasonal banner (auto show based on current date)
+"Why shop with us" section
+Recently ordered section (only for logged-in returning users)
+
+Step 29 — Products page
+
+Search bar at top
+Filter chips by category
+Sort dropdown
+Product cards grid (2 columns on mobile, 3–4 on desktop)
+Each card: image, name in English + Gujarati, price, market price crossed out, stock warning, Add to Cart button, qty selector
+"Only X left!" badge when stock below threshold
+Frequently bought together section below product list
+
+Step 30 — Seasonal page
+
+Green themed page with banner
+Auto-detect current season based on today's date
+Show only products matching current season
+"SEASONAL" and "LIMITED" badges on cards
+Countdown showing days left in season
+"Notify me" button for out-of-season items (saves phone number)
+
+Step 31 — Cart page
+
+List of cart items with qty controls
+Coupon code input (call POST /api/coupons/validate)
+Combo upsell suggestion ("Add rice to complete Dal-Chawal Combo!")
+Order total breakdown: subtotal, discount, final
+Pickup slot selector (fetched from available slots API)
+If after 9:15 PM: show banner "Ordering for tomorrow"
+Proceed to Checkout button
+
+Step 32 — Checkout page
+
+Show order summary (read-only)
+Pickup slot confirmation
+Payment method: UPI (show QR image) or Pay at Shop
+"After 9:15 PM" banner if applicable
+Order confirmation checkbox
+Place Order button → calls POST /api/orders → shows success screen with order number
+
+Step 33 — My Orders page
+
+Fetch GET /api/orders/my
+Each order card: order number, date, items summary, total, current status
+Status progress bar: Placed → Accepted → Ready → Collected
+Cancel button (only within 5 minutes of placing)
+Reorder button (adds same items to cart)
+Rate order button (after Collected status)
+
+Step 34 — Recharge page
+
+Three big operator cards: JIO, Vi, Airtel
+After selecting: mobile number input, popular amounts grid, name input, payment method
+Submit → calls POST /api/recharge/request → shows confirmation screen
+Popular plans info section (static cards per operator)
+
+Step 35 — Profile page
+
+Show name, mobile, email
+Edit name/email
+Loyalty points balance
+Referral code with copy button
+Language preference toggle
+
+Step 36 — Offers page
+
+Active combo deals
+Active coupon codes
+Loyalty points explanation
+Referral program explanation
+
+
+🖥️ PHASE 7 — Admin Dashboard
+Step 37 — Admin login
+
+Email + password form → verify against ADMIN_PASSWORD_HASH in env
+Send OTP to admin's mobile via Firebase for 2FA
+Issue JWT with admin role
+
+Step 38 — Dashboard home
+
+Today's stats: total orders, revenue, pending orders, low stock count
+Live order feed (poll GET /api/orders?today=true every 30 seconds)
+Countdown timer to 9:15 PM cutoff
+"Reopen Orders Today" button → calls PUT /api/settings/reopen-orders
+
+Step 39 — Order management page
+
+Table of all orders with filters (date, status, payment method)
+Click order → see full details
+Manual status update dropdown (backup to WhatsApp)
+Export button → downloads CSV
+
+Step 40 — Product management page
+
+Table of all products
+Add new product form: name (3 languages), price, market price, stock qty, alert level, category, image upload
+Edit existing product inline
+Mark as seasonal: set season start/end date, seasonal price
+Bulk price update: enter % change → updates all selected products
+
+Step 41 — Analytics page
+
+Revenue line chart (daily/weekly/monthly) using Recharts
+Top 10 products bar chart
+Peak order hours heatmap (24-hour grid)
+Payment method pie chart (UPI vs Pay at Shop)
+Average order value stat card
+Pre-packing list: tomorrow's pending orders grouped by product
+
+Step 42 — Customer management page
+
+Table of all customers
+Search by name or phone
+Block/unblock toggle
+"Send WhatsApp" button → compose and send via Twilio
+
+Step 43 — Recharge management page
+
+All recharge requests listed by date
+Filter by status: pending / completed / failed
+Daily revenue from recharges
+
+Step 44 — Price change log page
+
+Table: product name, old price, new price, changed via (WhatsApp / Admin Panel), timestamp
+Filter by date range or product
+
+Step 45 — Settings page
+
+Shop open/closed toggle
+Order cutoff time input (default 9:15 PM)
+Manual "Reopen orders today" button
+Pickup slots on/off toggles per slot
+UPI QR code image upload
+Holiday calendar (mark shop closed dates)
+WhatsApp broadcast: compose message → send to all or segments
+
+
+📱 PHASE 8 — PWA & Performance
+Step 46 — PWA setup
+
+Create client/public/manifest.json with shop name, icons, theme color green
+Create service worker in client/public/sw.js
+Register service worker in main.jsx
+Configure Vite PWA plugin
+Test "Add to Home Screen" on Android phone
+
+Step 47 — Push notifications
+
+Enable Firebase Cloud Messaging (FCM) in Firebase console
+Save FCM token per user in MongoDB when they allow notifications
+Create POST /api/notifications/send (admin only)
+Trigger notifications on order status changes
+
+Step 48 — Performance
+
+Add lazy loading to all images using loading="lazy"
+Implement React lazy loading for all page components using React.lazy and Suspense
+Compress all product images to WebP before uploading
+Add skeleton loading states to all pages
+
+
+🌐 PHASE 9 — Multilingual
+Step 49 — Language system
+
+Create a language context LanguageContext.jsx
+Create translation files: en.js, gu.js, hi.js — each exports an object with all UI strings
+Every UI label reads from current language context
+Language toggle in navbar saves preference to user profile
+Product names show based on current language
+
+
+🚀 PHASE 10 — Deployment
+Step 50 — Prepare for deployment
+
+Ensure all .env values are set, no hardcoded secrets
+Run full test of every user flow locally: browse → login → add to cart → checkout → order placed → WhatsApp to father → father replies → customer notified
+Test price update WhatsApp command end-to-end
+Test recharge flow end-to-end
+Test admin login and all dashboard sections
+
+Step 51 — Deploy backend to Render
+
+Push server code to GitHub
+Connect Render to your repo, set root directory to /server
+Add all backend .env variables in Render dashboard
+Deploy → note your Render URL (e.g., https://krishna-kirana-api.onrender.com)
+Test /health route on live URL
+
+Step 52 — Set Twilio webhook URL
+
+Go to Twilio console → WhatsApp sandbox settings
+Set webhook URL to your Render URL: https://krishna-kirana-api.onrender.com/api/webhook/whatsapp
+Test by sending a WhatsApp message to the sandbox number
+
+Step 53 — Deploy frontend to Vercel
+
+Push client code to GitHub
+Connect Vercel to your repo, set root directory to /client
+Add all frontend .env variables in Vercel dashboard (set VITE_BACKEND_URL to your Render URL)
+Deploy → note your Vercel URL
+
+Step 54 — Connect Cloudflare
+
+Add your custom domain to Cloudflare (free plan)
+Point Cloudflare DNS to Vercel
+Enable proxy (orange cloud) for DDoS protection
+Force HTTPS
+
+Step 55 — Final end-to-end test on live site
+
+Open the live URL on your phone
+Test every single user flow from a real phone number
+Test father's WhatsApp reply flow with real Twilio
+Test the 9:15 PM cutoff (temporarily set to 2 minutes from now to verify)
+Check admin dashboard loads all data correctly
+Confirm PWA install prompt appears on Android
+
+
+✅ Testing Checklist Before Going Live
+Go through this in order before sharing the link with customers:
+
+New customer can browse without login
+OTP login works on real phone number
+Google login works
+Products display with correct prices
+Cart add/remove works
+Checkout with slot selection works
+Order placed → father gets WhatsApp immediately
+Father replies 1 → customer gets confirmation WhatsApp
+Father replies 3 → customer gets "ready for pickup" WhatsApp
+After 9:15 PM → website shows "ordering for tomorrow"
+Father texts "price rice 5kg 280" → price updates on website
+Father texts "stock rice 5kg off" → product shows out of stock
+Recharge request submitted → father gets WhatsApp
+Admin dashboard login works with 2FA
+All analytics charts load
+Price change log shows WhatsApp updates
+PWA installs on phone home screen
+Push notification received when order status changes
+
+
+Total steps: 55
+Recommended daily pace: 3–5 steps per day = 2–3 weeks to complete
+
+using GIT and VS CODE.
