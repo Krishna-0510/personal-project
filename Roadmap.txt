@@ -470,3 +470,390 @@ Total steps: 55
 Recommended daily pace: 3–5 steps per day = 2–3 weeks to complete
 
 using GIT and VS CODE.
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+DATABASE SCHEMA :
+
+1. USER
+User
+├── _id                     ObjectId (auto)
+├── firebaseUid             String, required, unique
+├── name                    String
+├── mobile                  String, required, unique (+91XXXXXXXXXX)
+├── email                   String, optional
+├── role                    String, enum: ["customer", "admin"], default: "customer"
+├── isBlocked               Boolean, default: false
+├── fcmToken                String (for push notifications)
+├── preferredLanguage       String, enum: ["en", "gu", "hi"], default: "en"
+│
+├── loyaltyPoints           Number, default: 0
+├── totalSpent              Number, default: 0
+├── referralCode            String, unique (auto-generated on register)
+├── referredBy              String (referral code of who referred them)
+├── referralCount           Number, default: 0
+│
+├── firstOrderDone          Boolean, default: false
+├── lastOrderDate           Date
+├── inactiveReminderSent    Boolean, default: false
+│
+├── savedAddresses []
+│   ├── label               String (Home / Work / Other)
+│   ├── line1               String
+│   ├── landmark            String
+│   ├── pincode             String
+│   └── isDefault           Boolean
+│
+└── timestamps              createdAt, updatedAt
+
+2. PRODUCT
+Product
+├── _id                     ObjectId (auto)
+├── sku                     String, unique (e.g. "RICE-BASMATI-5KG")
+│
+├── name
+│   ├── en                  String, required
+│   ├── gu                  String
+│   └── hi                  String
+│
+├── description
+│   ├── en                  String
+│   ├── gu                  String
+│   └── hi                  String
+│
+├── category                String, enum:
+│                           ["rice_grains", "pulses", "dairy",
+│                            "bread_eggs", "daily_staples",
+│                            "spices", "seasonal", "combo"]
+│
+├── images []               Array of Strings (image URLs)
+├── primaryImage            String (main display image URL)
+│
+├── price                   Number, required (our selling price ₹)
+├── marketPrice             Number (MRP / market price for comparison badge)
+├── unit                    String (e.g. "5kg", "1L", "500g", "dozen")
+│
+├── stockQty                Number, default: 0
+├── stockAlertLevel         Number, default: 10
+├── inStock                 Boolean, default: true
+│
+├── isSeasonal              Boolean, default: false
+├── seasonName              String, enum:
+│                           ["monsoon", "diwali", "winter",
+│                            "navratri", "summer", null]
+├── seasonStart             Date
+├── seasonEnd               Date
+├── seasonalPrice           Number (special price during season)
+│
+├── isActive                Boolean, default: true
+├── isFeatured              Boolean, default: false
+├── tags []                 Array of Strings (for search)
+│
+├── salesCount              Number, default: 0 (for "popular" sort)
+│
+└── timestamps              createdAt, updatedAt
+
+3. ORDER
+Order
+├── _id                     ObjectId (auto)
+├── orderNumber             String, unique (e.g. "KK-2024-0001")
+├── customer                ObjectId → ref: User, required
+│
+├── items []
+│   ├── product             ObjectId → ref: Product
+│   ├── productName         String (snapshot at order time)
+│   ├── productImage        String (snapshot)
+│   ├── qty                 Number
+│   ├── unitPrice           Number (price at time of order)
+│   └── subtotal            Number
+│
+├── comboApplied            ObjectId → ref: Combo (if combo used)
+├── couponApplied           ObjectId → ref: Coupon (if coupon used)
+├── discountAmount          Number, default: 0
+├── loyaltyPointsUsed       Number, default: 0
+├── loyaltyDiscountAmount   Number, default: 0
+│
+├── subtotal                Number
+├── totalAmount             Number (after all discounts)
+│
+├── paymentMethod           String, enum: ["upi", "pay_at_shop"]
+├── paymentStatus           String, enum:
+│                           ["pending", "paid", "failed"],
+│                           default: "pending"
+│
+├── pickupSlot
+│   ├── date                Date
+│   ├── slot                String, enum:
+│   │                       ["morning_9_11", "afternoon_2_4", "evening_6_8"]
+│   └── label               String (e.g. "Morning 9–11 AM")
+│
+├── status                  String, enum:
+│                           ["placed", "accepted", "ready",
+│                            "collected", "cancelled", "declined"],
+│                           default: "placed"
+│
+├── statusHistory []
+│   ├── status              String
+│   ├── changedAt           Date
+│   └── changedBy           String ("father_whatsapp" / "admin_panel")
+│
+├── isForTomorrow           Boolean, default: false
+│   (true if placed after 9:15 PM cutoff)
+│
+├── cancelledAt             Date
+├── cancelReason            String
+├── canCancelUntil          Date (5 minutes after placement)
+│
+├── whatsappSentToFather    Boolean, default: false
+├── whatsappSentAt          Date
+│
+├── rating                  Number (1–5, filled after collected)
+├── review                  String
+│
+└── timestamps              createdAt, updatedAt
+
+4. COMBO
+Combo
+├── _id                     ObjectId (auto)
+├── name
+│   ├── en                  String, required
+│   ├── gu                  String
+│   └── hi                  String
+│
+├── description
+│   ├── en                  String
+│   ├── gu                  String
+│   └── hi                  String
+│
+├── image                   String (combo banner image URL)
+│
+├── products []
+│   ├── product             ObjectId → ref: Product
+│   ├── qty                 Number
+│   └── unitPrice           Number (price snapshot)
+│
+├── originalTotal           Number (sum of all items at regular price)
+├── comboPrice              Number (discounted combo price)
+├── savingsAmount           Number (originalTotal - comboPrice)
+├── savingsPercent          Number
+│
+├── isSeasonal              Boolean, default: false
+├── seasonName              String
+├── validFrom               Date
+├── validUntil              Date
+│
+├── isActive                Boolean, default: true
+├── displayOrder            Number (for sorting on UI)
+│
+└── timestamps              createdAt, updatedAt
+
+5. COUPON
+Coupon
+├── _id                     ObjectId (auto)
+├── code                    String, required, unique, uppercase
+│   (e.g. "FIRST10", "KRISHNA20")
+│
+├── description             String
+├── discountType            String, enum: ["percent", "flat"]
+├── discountValue           Number
+│   (10 means 10% if percent, ₹10 if flat)
+│
+├── minOrderAmount          Number, default: 0
+├── maxDiscountCap          Number (max ₹ discount even if percent)
+│
+├── usageLimitTotal         Number (max total uses, null = unlimited)
+├── usageLimitPerUser       Number, default: 1
+├── usedCount               Number, default: 0
+│
+├── usedBy []               Array of ObjectId → ref: User
+│
+├── isActive                Boolean, default: true
+├── validFrom               Date
+├── validUntil              Date
+│
+├── applicableFor           String, enum:
+│                           ["all", "first_order", "referral",
+│                            "festival", "specific_category"]
+├── applicableCategory      String (if applicableFor = specific_category)
+│
+└── timestamps              createdAt, updatedAt
+
+6. RECHARGE
+Recharge
+├── _id                     ObjectId (auto)
+├── requestNumber           String, unique (e.g. "RC-2024-0001")
+│
+├── customer                ObjectId → ref: User
+├── customerName            String
+├── customerMobile          String (submitter's number)
+│
+├── operator                String, enum: ["jio", "vi", "airtel"]
+├── rechargeNumber          String (number to recharge, 10 digits)
+├── amount                  Number
+│
+├── paymentMethod           String, enum: ["pay_at_shop", "upi"]
+│
+├── status                  String, enum:
+│                           ["pending", "completed", "failed"],
+│                           default: "pending"
+│
+├── whatsappSentToFather    Boolean, default: false
+├── fatherRepliedAt         Date
+├── completedAt             Date
+│
+├── customerNotified        Boolean, default: false
+│
+└── timestamps              createdAt, updatedAt
+
+7. PRICE CHANGE LOG
+PriceChangeLog
+├── _id                     ObjectId (auto)
+├── product                 ObjectId → ref: Product
+├── productName             String (snapshot)
+├── productSku              String (snapshot)
+│
+├── oldPrice                Number
+├── newPrice                Number
+├── changeAmount            Number (newPrice - oldPrice)
+│
+├── changedVia              String, enum:
+│                           ["whatsapp_command", "admin_panel",
+│                            "bulk_update"]
+│
+├── changedBy               String
+│   ("father_whatsapp" / "admin" / "system")
+│
+├── rawCommand              String
+│   (original WhatsApp text if via whatsapp_command,
+│    e.g. "price rice 5kg 280")
+│
+└── createdAt               Date (timestamp of change)
+
+8. SETTINGS (Single Document — only 1 record in this collection)
+Settings
+├── _id                     ObjectId (auto)
+│
+├── shopName                String, default: "Krishna Kirana Stores"
+├── shopAddress             String
+├── shopMobile              String
+├── adminWhatsapp           String (father's WhatsApp number)
+│
+├── isShopOpen              Boolean, default: true
+├── holidayDates []         Array of Dates
+│
+├── orderCutoffTime         String, default: "21:15"
+│   (24hr format IST)
+│
+├── ordersOpenForToday      Boolean, default: true
+│   (set to false by cron at 9:15 PM, reset at midnight)
+│
+├── manualOverride          Boolean, default: false
+│   (true if father manually reopened after cutoff)
+│
+├── pickupSlots
+│   ├── morning
+│   │   ├── isOpen          Boolean, default: true
+│   │   ├── from            String ("09:00")
+│   │   ├── to              String ("11:00")
+│   │   └── orderBefore     String ("08:00")
+│   ├── afternoon
+│   │   ├── isOpen          Boolean, default: true
+│   │   ├── from            String ("14:00")
+│   │   ├── to              String ("16:00")
+│   │   └── orderBefore     String ("13:00")
+│   └── evening
+│       ├── isOpen          Boolean, default: true
+│       ├── from            String ("18:00")
+│       ├── to              String ("20:00")
+│       └── orderBefore     String ("17:00")
+│
+├── upiQrImageUrl           String (QR code image for payment)
+├── upiId                   String
+│
+├── loyaltyConfig
+│   ├── pointsPerHundred    Number, default: 5
+│   │   (earn 5 points per ₹100 spent)
+│   └── pointsToRupee       Number, default: 10
+│       (100 points = ₹10)
+│
+├── referralConfig
+│   ├── referrerDiscount    Number, default: 20 (₹20 off)
+│   └── refereeDiscount     Number, default: 20 (₹20 off)
+│
+├── firstOrderDiscount      Number, default: 10 (10%)
+│
+└── timestamps              createdAt, updatedAt
+
+9. NOTIFICATION LOG
+NotificationLog
+├── _id                     ObjectId (auto)
+├── recipient               ObjectId → ref: User
+├── recipientMobile         String
+│
+├── channel                 String, enum: ["whatsapp", "push", "sms"]
+│
+├── type                    String, enum:
+│                           ["order_placed", "order_accepted",
+│                            "order_ready", "order_collected",
+│                            "order_declined", "order_delayed",
+│                            "recharge_done", "recharge_failed",
+│                            "broadcast", "inactive_reminder",
+│                            "cutoff_summary"]
+│
+├── message                 String (full message text sent)
+├── orderId                 ObjectId → ref: Order (if related)
+├── rechargeId              ObjectId → ref: Recharge (if related)
+│
+├── status                  String, enum:
+│                           ["sent", "delivered", "failed"]
+│
+├── twilioMessageSid        String (Twilio message ID for tracking)
+│
+└── createdAt               Date
+
+10. SUBSCRIPTION (Auto-Order)
+Subscription
+├── _id                     ObjectId (auto)
+├── customer                ObjectId → ref: User
+│
+├── items []
+│   ├── product             ObjectId → ref: Product
+│   ├── qty                 Number
+│   └── productName         String
+│
+├── frequency               String, enum: ["daily", "weekly", "monthly"]
+├── nextOrderDate           Date
+│
+├── pickupSlot              String, enum:
+│                           ["morning_9_11", "afternoon_2_4", "evening_6_8"]
+│
+├── paymentMethod           String, enum: ["upi", "pay_at_shop"]
+│
+├── isActive                Boolean, default: true
+├── pausedUntil             Date
+│
+└── timestamps              createdAt, updatedAt
+
+Relationships Summary
+User ──────────────< Order          (one user → many orders)
+User ──────────────< Recharge       (one user → many recharges)
+User ──────────────< Subscription   (one user → many subscriptions)
+User ──────────────< NotificationLog
+
+Order >────────────  User           (order belongs to user)
+Order >──── items ── Product        (order items reference products)
+Order >────────────  Combo          (optional combo applied)
+Order >────────────  Coupon         (optional coupon applied)
+
+Product ────────────< PriceChangeLog
+Combo >──── products ─ Product
+
+Settings            (1 document only — global config)
+
+Index Recommendations
+User:           mobile (unique), firebaseUid (unique), referralCode (unique)
+Product:        category, isSeasonal, inStock, isActive, sku (unique)
+Order:          customer, status, pickupSlot.date, orderNumber (unique)
+Recharge:       customer, status, requestNumber (unique)
+PriceChangeLog: product, createdAt
+NotificationLog: recipient, type, createdAt
+Subscription:   customer, nextOrderDate, isActive
