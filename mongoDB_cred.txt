@@ -1,8 +1,0 @@
-Username
-kp602552_db_user
-Password
-KMo54tRsKc6r6DEt
-
-
-CONNECTION STRING : 
-mongodb+srv://kp602552_db_user:KMo54tRsKc6r6DEt@krishna-kirana.wrv3kpu.mongodb.net/?appName=krishna-kirana
