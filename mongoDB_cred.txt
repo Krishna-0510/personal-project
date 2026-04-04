@@ -1,7 +1,4 @@
-Username
-kp602552_db_user
-Password
-KMo54tRsKc6r6DEt
+
 
 
 CONNECTION STRING : 
