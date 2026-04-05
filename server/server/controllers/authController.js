@@ -1,4 +1,6 @@
-const User = require('../models/User');
+node -e "
+const fs = require('fs');
+const content = \`const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const admin = require('../config/firebaseAdmin');
 
@@ -22,7 +24,7 @@ const verifyFirebaseToken = async (req, res) => {
     if (!identifier) {
       return res.status(400).json({ message: 'No phone or email found in token' });
     }
-    let user = await User.findOne({ $or: [{ phone: phone_number }, { email }] });
+    let user = await User.findOne({ \$or: [{ phone: phone_number }, { email }] });
     if (user) {
       const token = generateToken(user._id, user.phone);
       return res.status(200).json({ success: true, isNewUser: false, token, user: { id: user._id, name: user.name, phone: user.phone, email: user.email, address: user.address, walletBalance: user.walletBalance } });
@@ -42,7 +44,7 @@ const verifyFirebaseToken = async (req, res) => {
 const registerUser = async (req, res) => {
   try {
     const { name, phone, email, address } = req.body;
-    const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
+    const existingUser = await User.findOne({ \$or: [{ phone }, { email }] });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
@@ -81,11 +83,7 @@ const getProfile = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     const { name, address } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { name, address },
-      { new: true }
-    ).select('-__v');
+    const user = await User.findByIdAndUpdate(req.user.id, { name, address }, { new: true }).select('-__v');
     res.status(200).json({ success: true, user });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -102,11 +100,8 @@ const updateFcmToken = async (req, res) => {
   }
 };
 
-module.exports = {
-  verifyFirebaseToken,
-  registerUser,
-  loginUser,
-  getProfile,
-  updateProfile,
-  updateFcmToken
-};
+module.exports = { verifyFirebaseToken, registerUser, loginUser, getProfile, updateProfile, updateFcmToken };
+\`;
+fs.writeFileSync('E:/PERSONAL_PROJECT/server/controllers/authController.js', content, 'utf8');
+console.log('Done!');
+"
