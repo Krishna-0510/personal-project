@@ -1,10 +1,13 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const helmet = require('helmet');
+const connectDB = require('./config/db');
 
 dotenv.config();
+
+// Connect to MongoDB
+connectDB();
 
 const app = express();
 
@@ -18,12 +21,14 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Krishna Kirana API running' });
 });
 
-// MongoDB connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected!'))
-  .catch((err) => console.log('MongoDB error:', err));
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/products', require('./routes/products'));
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/cart', require('./routes/cart'));
+app.use('/api/admin', require('./routes/admin'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log('Server running on port', PORT);
+  console.log(`Server running on port ${PORT}`);
 });
