@@ -1,0 +1,367 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import api from '../utils/api';
+import toast from 'react-hot-toast';
+import useScrollReveal from '../hooks/useScrollReveal';
+
+export default function Home() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [categories, setCategories] = useState([]);
+  const [featured, setFeatured] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useScrollReveal();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          api.get('/api/products/categories'),
+          api.get('/api/products?limit=8'),
+        ]);
+        setCategories(catRes.data?.categories || catRes.data || []);
+        setFeatured(prodRes.data?.products || prodRes.data || []);
+      } catch {
+        toast.error('Failed to load data');
+      }
+      setLoading(false);
+    };
+    fetchData();
+  }, []);
+
+  const addToCart = async (productId) => {
+    try {
+      await api.post('/api/cart/add', { productId, quantity: 1 });
+      toast.success('Added to cart!');
+    } catch {
+      toast.error('Could not add to cart');
+    }
+  };
+
+  const catIcons = ['🌾','🧴','🥛','🧂','🍪','🥤','🧹','🫒'];
+
+  return (
+    <div style={{ minHeight: '100vh' }}>
+
+      {/* ── HERO ─────────────────────────────────────── */}
+     <section style={{
+  background: '#1C1C1C',
+  minHeight: 420,
+  display: 'grid',
+  gridTemplateColumns: '1fr 420px',
+  alignItems: 'stretch',
+  gap: 0,
+  width: '100%',
+}}>
+        <div style={{ padding: '60px 40px 60px 80px', maxWidth: 760 }} className="reveal-left">
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'rgba(255,107,43,0.15)', color: '#FF8C5A',
+            borderRadius: 20, padding: '6px 16px', fontSize: 12,
+            fontWeight: 600, marginBottom: 20,
+          }}>⚡ Same Day Delivery in Bhopal</div>
+
+          <h1 style={{
+            fontFamily: 'Syne, sans-serif',
+            fontSize: 52, fontWeight: 800, color: '#fff',
+            lineHeight: 1.1, marginBottom: 16,
+          }}>
+            Your Neighbourhood<br />
+            <span style={{ color: '#FF6B2B' }}>Kirana Store</span><br />
+            Gone Digital.
+          </h1>
+
+          <p style={{ color: '#888', fontSize: 16, lineHeight: 1.7, marginBottom: 32, maxWidth: 420 }}>
+            Fresh groceries, daily essentials & household needs — delivered to your door in hours. No minimum order.
+          </p>
+
+          <div style={{ display: 'flex', gap: 14, marginBottom: 40 }}>
+            <button className="btn-primary" onClick={() => navigate('/products')}
+              style={{ padding: '14px 32px', fontSize: 15 }}>
+              Shop Now →
+            </button>
+            <button className="btn-ghost" onClick={() => navigate('/products')}>
+              Browse Offers
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 40 }}>
+            {[['500+','Products'],['2hr','Fast Delivery'],['4.9★','Rating'],['Free','Delivery']].map(([num, label]) => (
+              <div key={label}>
+                <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 22, fontWeight: 700, color: '#fff' }}>{num}</div>
+                <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Hero right — featured cards */}
+      <div style={{
+  background: '#252525',
+  display: 'flex', flexDirection: 'column',
+  justifyContent: 'center', gap: 12,
+  padding: '40px 40px 40px 32px',
+  borderLeft: '1px solid #333',
+}} className="reveal-right">
+          <div style={{ fontSize: 11, color: '#555', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+            Today's Picks
+          </div>
+          {featured.slice(0, 3).map((p, i) => (
+            <div key={p._id} className={`reveal delay-${i + 1}`}
+              onClick={() => navigate(`/products/${p._id}`)}
+              style={{
+                background: '#2E2E2E', borderRadius: 14,
+                padding: '14px 16px', display: 'flex',
+                alignItems: 'center', gap: 14, cursor: 'pointer',
+                border: '1px solid #3A3A3A',
+                transition: 'border-color 0.2s, background 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#FF6B2B'; e.currentTarget.style.background = '#333'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#3A3A3A'; e.currentTarget.style.background = '#2E2E2E'; }}
+            >
+              <div style={{
+                width: 56, height: 56, background: '#3A3A3A',
+                borderRadius: 10, display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: 26, flexShrink: 0,
+              }}>{catIcons[i] || '🛒'}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                <div style={{ fontSize: 12, color: '#666' }}>{p.unit}</div>
+              </div>
+              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 18, fontWeight: 700, color: '#FF6B2B', flexShrink: 0 }}>₹{p.price}</div>
+              <button
+                onClick={e => { e.stopPropagation(); addToCart(p._id); }}
+                style={{
+                  width: 30, height: 30, background: '#FF6B2B',
+                  border: 'none', borderRadius: 8, color: '#fff',
+                  fontSize: 18, fontWeight: 700, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  transition: 'background 0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#e85a1a'}
+                onMouseLeave={e => e.currentTarget.style.background = '#FF6B2B'}
+              >+</button>
+            </div>
+          ))}
+          {loading && [1,2,3].map(i => (
+            <div key={i} style={{ background: '#2E2E2E', borderRadius: 14, height: 84, animation: 'pulse 1.5s infinite' }} />
+          ))}
+        </div>
+      </section>
+
+      {/* ── OFFERS BANNER STRIP ──────────────────────── */}
+      <section style={{ background: '#FF6B2B', padding: '14px 80px' }}>
+  <div style={{
+    display: 'flex', justifyContent: 'space-around', alignItems: 'center',
+  }}>
+          {[['🚚','Free delivery on all orders'],['⚡','Delivery in 2 hours'],['💳','COD & UPI accepted'],['🔄','Easy returns']].map(([icon, text]) => (
+            <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#fff' }}>
+              <span style={{ fontSize: 20 }}>{icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{text}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div style={{ padding: '0 80px' }}>
+
+        {/* ── CATEGORIES ───────────────────────────────── */}
+        <section style={{ padding: '56px 0 40px' }}>
+          <div className="reveal" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+            <div>
+              <p style={{ fontSize: 12, color: '#FF6B2B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Browse by</p>
+              <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 800 }}>Shop Categories</h2>
+            </div>
+            <button onClick={() => navigate('/products')} style={{
+              background: 'none', border: '1px solid #EDE8E3', borderRadius: 8,
+              padding: '8px 20px', fontSize: 13, fontWeight: 600, color: '#555',
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#FF6B2B'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#FF6B2B'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#EDE8E3'; }}
+            >View All →</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 14 }}>
+            {(categories.length > 0 ? categories : Array(8).fill(null)).map((cat, i) => (
+              <div key={i} className={`reveal delay-${i + 1}`}
+                onClick={() => navigate(cat ? `/products?category=${cat._id}` : '/products')}
+                style={{
+                  background: '#fff', borderRadius: 16, padding: '22px 12px',
+                  textAlign: 'center', cursor: 'pointer',
+                  border: '1px solid #EDE8E3',
+                  transition: 'all 0.25s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = '#FFF0E8';
+                  e.currentTarget.style.borderColor = '#FF6B2B';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(255,107,43,0.15)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#fff';
+                  e.currentTarget.style.borderColor = '#EDE8E3';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <div style={{ fontSize: 32, marginBottom: 10 }}>
+                  {cat ? (cat.icon || catIcons[i] || '🛍️') : catIcons[i]}
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#333' }}>
+                  {cat ? cat.name : <span style={{ background: '#F0EBE5', borderRadius: 4, color: 'transparent' }}>Loading</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── FEATURED PRODUCTS ─────────────────────────── */}
+        <section style={{ padding: '16px 0 56px' }}>
+          <div className="reveal" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+            <div>
+              <p style={{ fontSize: 12, color: '#FF6B2B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Hand picked</p>
+              <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 800 }}>Featured Products</h2>
+            </div>
+            <button onClick={() => navigate('/products')} style={{
+              background: 'none', border: '1px solid #EDE8E3', borderRadius: 8,
+              padding: '8px 20px', fontSize: 13, fontWeight: 600, color: '#555',
+              cursor: 'pointer', transition: 'all 0.2s',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#FF6B2B'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#FF6B2B'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#555'; e.currentTarget.style.borderColor = '#EDE8E3'; }}
+            >See All Products →</button>
+          </div>
+
+          {loading ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+              {[1,2,3,4,5,6,7,8].map(i => (
+                <div key={i} style={{ background: '#fff', borderRadius: 16, height: 280, border: '1px solid #EDE8E3' }} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+              {featured.map((product, i) => (
+                <div key={product._id} className={`reveal-scale delay-${(i % 4) + 1}`}
+                  style={{
+                    background: '#fff', borderRadius: 16,
+                    border: '1px solid #EDE8E3', overflow: 'hidden',
+                    cursor: 'pointer', transition: 'transform 0.25s, box-shadow 0.25s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 16px 40px rgba(0,0,0,0.1)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <div onClick={() => navigate(`/products/${product._id}`)}>
+                    <div style={{
+                      background: '#FDF3EE', height: 160,
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: 60,
+                      position: 'relative',
+                    }}>
+                      {product.image
+                        ? <img src={product.image} alt={product.name} style={{ height: '80%', objectFit: 'contain' }} />
+                        : catIcons[i % catIcons.length]}
+                      <div style={{
+                        position: 'absolute', top: 12, left: 12,
+                        background: product.inStock ? '#DCFCE7' : '#FEE2E2',
+                        color: product.inStock ? '#166534' : '#991B1B',
+                        fontSize: 10, fontWeight: 700, borderRadius: 6, padding: '3px 8px',
+                      }}>
+                        {product.inStock ? 'In Stock' : 'Out of Stock'}
+                      </div>
+                    </div>
+                    <div style={{ padding: '14px 16px 12px' }}>
+                      <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                        {product.category?.name || 'Grocery'}
+                      </div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: '#1C1C1C', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {product.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#aaa', marginBottom: 12 }}>{product.unit}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 20, fontWeight: 700, color: '#1C1C1C' }}>
+                          ₹{product.price}
+                        </span>
+                        {product.inStock && (
+                          <button
+                            onClick={e => { e.stopPropagation(); addToCart(product._id); }}
+                            style={{
+                              width: 36, height: 36, background: '#FF6B2B',
+                              border: 'none', borderRadius: 10, color: '#fff',
+                              fontSize: 22, fontWeight: 700, display: 'flex',
+                              alignItems: 'center', justifyContent: 'center',
+                              transition: 'background 0.2s, transform 0.15s',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#e85a1a'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#FF6B2B'; e.currentTarget.style.transform = 'scale(1)'; }}
+                          >+</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── WHY US SECTION ────────────────────────────── */}
+        <section style={{ padding: '40px 0 64px' }}>
+          <div className="reveal" style={{ textAlign: 'center', marginBottom: 40 }}>
+            <p style={{ fontSize: 12, color: '#FF6B2B', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>Why choose us</p>
+            <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 28, fontWeight: 800 }}>The Krishna Kirana Promise</h2>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20 }}>
+            {[
+              { icon: '🚚', title: 'Fast Delivery', desc: 'Order before 6 PM and get delivered same day to your doorstep.' },
+              { icon: '✅', title: 'Quality Assured', desc: 'Every product is handpicked and quality checked before dispatch.' },
+              { icon: '💰', title: 'Best Prices', desc: 'Genuine kirana prices — no hidden charges, no markups.' },
+              { icon: '📞', title: 'WhatsApp Support', desc: 'Track and manage your order directly via WhatsApp.' },
+            ].map(({ icon, title, desc }, i) => (
+              <div key={title} className={`reveal delay-${i + 1}`}
+                style={{
+                  background: '#fff', borderRadius: 16,
+                  border: '1px solid #EDE8E3', padding: '28px 24px',
+                  transition: 'all 0.25s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#FF6B2B'; e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 32px rgba(255,107,43,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#EDE8E3'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <div style={{
+                  width: 52, height: 52, background: '#FFF0E8',
+                  borderRadius: 14, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: 26, marginBottom: 16,
+                }}>{icon}</div>
+                <h3 style={{ fontFamily: 'Syne, sans-serif', fontSize: 17, fontWeight: 700, marginBottom: 8 }}>{title}</h3>
+                <p style={{ fontSize: 13, color: '#888', lineHeight: 1.6 }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── CTA BANNER ────────────────────────────────── */}
+        <section className="reveal" style={{ marginBottom: 64 }}>
+          <div style={{
+            background: '#1C1C1C', borderRadius: 24,
+            padding: '48px 56px', display: 'flex',
+            justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <div>
+              <h2 style={{ fontFamily: 'Syne, sans-serif', fontSize: 32, fontWeight: 800, color: '#fff', marginBottom: 10 }}>
+                Ready to order your groceries?
+              </h2>
+              <p style={{ color: '#888', fontSize: 15 }}>Free delivery · No minimum order · Pay on delivery</p>
+            </div>
+            <button className="btn-primary" onClick={() => navigate('/products')}
+              style={{ padding: '16px 40px', fontSize: 16, flexShrink: 0 }}>
+              Start Shopping →
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  );
+}
