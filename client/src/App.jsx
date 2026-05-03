@@ -15,6 +15,17 @@ import Profile from './pages/Profile';
 import Wallet from './pages/Wallet';
 import Navbar from './components/Navbar';
 
+// Public pages — Navbar shown but no login required
+function PublicLayout({ children }) {
+  return (
+    <>
+      <Navbar />
+      {children}
+    </>
+  );
+}
+
+// Protected pages — login required
 function ProtectedLayout({ children }) {
   return (
     <ProtectedRoute>
@@ -32,16 +43,20 @@ function App() {
           style: { fontFamily: 'DM Sans, sans-serif', fontSize: 14 }
         }} />
         <Routes>
+          {/* Public routes — no login needed */}
           <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedLayout><Home /></ProtectedLayout>} />
-          <Route path="/products" element={<ProtectedLayout><Products /></ProtectedLayout>} />
-          <Route path="/products/:id" element={<ProtectedLayout><ProductDetail /></ProtectedLayout>} />
+          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+          <Route path="/products" element={<PublicLayout><Products /></PublicLayout>} />
+          <Route path="/products/:id" element={<PublicLayout><ProductDetail /></PublicLayout>} />
+
+          {/* Protected routes — login required */}
           <Route path="/cart" element={<ProtectedLayout><Cart /></ProtectedLayout>} />
           <Route path="/checkout" element={<ProtectedLayout><Checkout /></ProtectedLayout>} />
           <Route path="/orders" element={<ProtectedLayout><Orders /></ProtectedLayout>} />
           <Route path="/orders/:id" element={<ProtectedLayout><OrderDetail /></ProtectedLayout>} />
           <Route path="/profile" element={<ProtectedLayout><Profile /></ProtectedLayout>} />
           <Route path="/wallet" element={<ProtectedLayout><Wallet /></ProtectedLayout>} />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// import { auth } from '../context/AuthContext';
 import { auth } from '../firebase/config';
 import {
   RecaptchaVerifier,
@@ -15,16 +14,18 @@ export default function Login() {
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone'); // 'phone' | 'otp'
+  const [step, setStep] = useState('phone');
   const [loading, setLoading] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
   const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-      });
+    if (window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+      window.recaptchaVerifier = null;
     }
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+    });
   };
 
   const sendOTP = async () => {
@@ -59,38 +60,40 @@ export default function Login() {
       navigate('/');
     } catch (err) {
       toast.error('Wrong OTP. Try again.');
+      console.error(err);
     }
     setLoading(false);
   };
 
   const googleLogin = async () => {
-  setLoading(true);
-  try {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const idToken = await result.user.getIdToken();
+      await api.post('/api/auth/register', {}, {
+        headers: { Authorization: `Bearer ${idToken}` }
+      });
+      localStorage.setItem('token', idToken);
+      toast.success('Logged in with Google!');
+      navigate('/');
+    } catch (err) {
+      console.error('Google Login Error:', err);
+      toast.error(err.message || 'Google login failed.');
+    }
+    setLoading(false);
+  };
 
-    const result = await signInWithPopup(auth, provider);
-    const idToken = await result.user.getIdToken();
-
-    await api.post('/api/auth/register', {}, {
-      headers: { Authorization: `Bearer ${idToken}` }
-    });
-
-    localStorage.setItem('token', idToken);
-    toast.success('Logged in with Google!');
-    navigate('/');
-  } catch (err) {
-    console.error("Google Login Error:", err);
-    toast.error(err.message || 'Google login failed.');
-  }
-  setLoading(false);
-};
   return (
     <div style={{
-      minHeight: '100vh', background: 'linear-gradient(160deg, #fff3ec 0%, #f9f5f0 100%)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center',
-      justifyContent: 'center', padding: '24px 20px',
+      minHeight: '100vh',
+      background: 'linear-gradient(160deg, #fff3ec 0%, #f9f5f0 100%)',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      padding: '24px 20px',
     }}>
+
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 36 }}>
         <div style={{ fontSize: 56 }}>🏪</div>
@@ -116,14 +119,18 @@ export default function Login() {
               <div style={{
                 background: '#f2f2f2', borderRadius: 10, padding: '12px 14px',
                 fontWeight: 600, color: '#444', whiteSpace: 'nowrap',
-              }}>🇮🇳 +91</div>
+              }}>
+                🇮🇳 +91
+              </div>
               <input
-                type="tel" placeholder="10-digit mobile number"
-                value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                onKeyDown={e => e.key === 'Enter' && sendOTP()}
+                type="tel"
+                placeholder="10-digit mobile number"
+                value={phone}
+                onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
               />
             </div>
-            <button className="btn-primary" onClick={sendOTP} disabled={loading}>
+
+            <button type="button" className="btn-primary" onClick={sendOTP} disabled={loading}>
               {loading ? 'Sending...' : 'Send OTP'}
             </button>
 
@@ -131,8 +138,13 @@ export default function Login() {
               — or —
             </div>
 
-            <button className="btn-outline" onClick={googleLogin} disabled={loading}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={googleLogin}
+              disabled={loading}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
               <span style={{ fontSize: 18 }}>G</span>
               Continue with Google
             </button>
@@ -141,16 +153,23 @@ export default function Login() {
           <>
             <p style={{ color: '#666', fontSize: 14, marginBottom: 16 }}>
               OTP sent to +91 {phone} —{' '}
-              <span style={{ color: '#e65c00', cursor: 'pointer' }}
-                onClick={() => setStep('phone')}>Change</span>
+              <span
+                style={{ color: '#e65c00', cursor: 'pointer' }}
+                onClick={() => setStep('phone')}
+              >
+                Change
+              </span>
             </p>
             <input
-              type="tel" placeholder="6-digit OTP" maxLength={6}
-              value={otp} onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
+              type="tel"
+              placeholder="6-digit OTP"
+              maxLength={6}
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
               onKeyDown={e => e.key === 'Enter' && verifyOTP()}
               style={{ marginBottom: 16, letterSpacing: 8, fontSize: 20, textAlign: 'center' }}
             />
-            <button className="btn-primary" onClick={verifyOTP} disabled={loading}>
+            <button type="button" className="btn-primary" onClick={verifyOTP} disabled={loading}>
               {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
           </>
@@ -158,6 +177,7 @@ export default function Login() {
       </div>
 
       <div id="recaptcha-container" />
+
       <p style={{ color: '#bbb', fontSize: 12, marginTop: 24, textAlign: 'center' }}>
         By continuing, you agree to our Terms & Privacy Policy
       </p>
