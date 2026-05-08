@@ -1,22 +1,21 @@
 import { Stack } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { auth } from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Layout() {
-  const [user, setUser] = useState(null);
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged((u) => {
-      setUser(u);
-      if (u) {
+    const checkAuth = async () => {
+      const token = await AsyncStorage.getItem('adminToken');
+      if (token) {
         router.replace('/dashboard');
       } else {
         router.replace('/login');
       }
-    });
-    return unsubscribe;
+    };
+    checkAuth();
   }, []);
 
   return (

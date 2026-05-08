@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
-import axios from 'axios';
-import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API = 'http://172.25.40.73:5000';
 
 export default function OrderDetail() {
   const { id } = useLocalSearchParams();
@@ -20,11 +18,12 @@ export default function OrderDetail() {
 
   const fetchOrder = async () => {
     try {
-      const token = await auth().currentUser?.getIdToken();
-      const response = await axios.get(`${API_URL}/api/admin/orders/${id}`, {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/admin/orders/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setOrder(response.data);
+      const data = await response.json();
+      setOrder(data);
     } catch (error) {
       Alert.alert('Error', 'Failed to load order');
     }
@@ -34,18 +33,18 @@ export default function OrderDetail() {
   const updateStatus = async (status) => {
     setUpdating(true);
     try {
-      const token = await auth().currentUser?.getIdToken();
-      await axios.put(
-        `${API_URL}/api/admin/orders/${id}/status`,
-        { status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setOrder({ ...order, status });
-      Toast.show({
-        type: 'success',
-        text1: 'Status Updated!',
-        text2: `Order marked as ${status}`,
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/admin/orders/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
       });
+      if (!response.ok) throw new Error('Failed');
+      setOrder({ ...order, status });
+      Alert.alert('✅ Updated', `Order marked as ${status}`);
     } catch (error) {
       Alert.alert('Error', 'Failed to update status');
     }
@@ -124,8 +123,6 @@ export default function OrderDetail() {
           <Text style={styles.statusButtonText}>🚚 Mark Delivered</Text>
         </Pressable>
       </View>
-
-      <Toast />
     </ScrollView>
   );
 }

@@ -1,11 +1,9 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
-import axios from 'axios';
-import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API = 'http://172.25.40.73:5000';
 
 export default function AddProduct() {
   const [formData, setFormData] = useState({
@@ -25,22 +23,23 @@ export default function AddProduct() {
     }
     setLoading(true);
     try {
-      const token = await auth().currentUser?.getIdToken();
-      await axios.post(
-        `${API_URL}/api/products`,
-        {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/products`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           ...formData,
           price: parseFloat(formData.price),
           stock: parseInt(formData.stock),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      Toast.show({
-        type: 'success',
-        text1: 'Product Added! ✅',
-        text2: `${formData.name} added successfully`,
+        }),
       });
-      setTimeout(() => router.back(), 1500);
+      if (!response.ok) throw new Error('Failed');
+      Alert.alert('✅ Success', `${formData.name} added successfully`, [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (error) {
       Alert.alert('Error', 'Failed to add product');
     }
@@ -135,8 +134,6 @@ export default function AddProduct() {
           <Text style={styles.buttonText}>❌ Cancel</Text>
         </Pressable>
       </View>
-
-      <Toast />
     </ScrollView>
   );
 }

@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
-import axios from 'axios';
-import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API = 'http://172.25.40.73:5000';
 
 export default function EditProduct() {
   const { id } = useLocalSearchParams();
@@ -27,11 +25,11 @@ export default function EditProduct() {
 
   const fetchProduct = async () => {
     try {
-      const token = await auth().currentUser?.getIdToken();
-      const response = await axios.get(`${API_URL}/api/products/${id}`, {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const product = response.data;
+      const product = await response.json();
       setFormData({
         name: product.name,
         category: product.category,
@@ -53,11 +51,7 @@ export default function EditProduct() {
         `Change price from ₹${originalPrice} to ₹${formData.price}?`,
         [
           { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Confirm',
-            onPress: updateProduct,
-            style: 'destructive',
-          },
+          { text: 'Confirm', onPress: updateProduct, style: 'destructive' },
         ]
       );
     } else {
@@ -68,22 +62,23 @@ export default function EditProduct() {
   const updateProduct = async () => {
     setUpdating(true);
     try {
-      const token = await auth().currentUser?.getIdToken();
-      await axios.put(
-        `${API_URL}/api/products/${id}`,
-        {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           ...formData,
           price: parseFloat(formData.price),
           stock: parseInt(formData.stock),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      Toast.show({
-        type: 'success',
-        text1: 'Product Updated! ✅',
-        text2: `${formData.name} updated successfully`,
+        }),
       });
-      setTimeout(() => router.back(), 1500);
+      if (!response.ok) throw new Error('Failed');
+      Alert.alert('✅ Updated', `${formData.name} updated successfully`, [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
     } catch (error) {
       Alert.alert('Error', 'Failed to update product');
     }
@@ -137,9 +132,7 @@ export default function EditProduct() {
             placeholderTextColor="#ccc"
           />
           {formData.price !== originalPrice && (
-            <Text style={styles.priceChange}>
-              (was ₹{originalPrice})
-            </Text>
+            <Text style={styles.priceChange}>(was ₹{originalPrice})</Text>
           )}
         </View>
       </View>
@@ -188,8 +181,6 @@ export default function EditProduct() {
           <Text style={styles.buttonText}>❌ Cancel</Text>
         </Pressable>
       </View>
-
-      <Toast />
     </ScrollView>
   );
 }

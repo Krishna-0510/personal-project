@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API = 'http://172.25.40.73:5000';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
     todayOrders: 0,
-    todayRevenue: 0,
+    pendingOrders: 0,
     totalProducts: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -21,11 +20,12 @@ export default function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const token = await auth().currentUser?.getIdToken();
-      const response = await axios.get(`${API_URL}/api/admin/stats`, {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/admin/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setStats(response.data);
+      const data = await response.json();
+      setStats(data.stats || { todayOrders: 0, todayRevenue: 0, totalProducts: 0 });
     } catch (error) {
       console.error('Error fetching stats:', error.message);
     }
@@ -33,7 +33,8 @@ export default function Dashboard() {
   };
 
   const logout = async () => {
-    await auth().signOut();
+    await AsyncStorage.removeItem('adminToken');
+    router.replace('/login');
   };
 
   return (
@@ -47,10 +48,9 @@ export default function Dashboard() {
         </View>
 
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>₹{stats.todayRevenue}</Text>
-          <Text style={styles.statLabel}>Revenue Today</Text>
+          <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
+          <Text style={styles.statLabel}>Pending Orders</Text>
         </View>
-
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{stats.totalProducts}</Text>
           <Text style={styles.statLabel}>Total Products</Text>

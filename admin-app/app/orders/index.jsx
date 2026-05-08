@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API = 'http://172.25.40.73:5000';
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
@@ -18,11 +17,12 @@ export default function Orders() {
 
   const fetchOrders = async () => {
     try {
-      const token = await auth().currentUser?.getIdToken();
-      const response = await axios.get(`${API_URL}/api/admin/orders`, {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/admin/orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setOrders(response.data);
+      const data = await response.json();
+      setOrders(data.orders || []);
     } catch (error) {
       console.error('Error fetching orders:', error.message);
     }
@@ -93,10 +93,10 @@ export default function Orders() {
 
 const getStatusColor = (status) => {
   switch (status) {
-    case 'pending': return { color: '#92400e' };
+    case 'pending':   return { color: '#92400e' };
     case 'confirmed': return { color: '#1e40af' };
     case 'delivered': return { color: '#166534' };
-    default: return { color: '#666' };
+    default:          return { color: '#666' };
   }
 };
 

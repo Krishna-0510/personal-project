@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API = 'http://172.25.40.73:5000';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
@@ -18,11 +17,12 @@ export default function Products() {
 
   const fetchProducts = async () => {
     try {
-      const token = await auth().currentUser?.getIdToken();
-      const response = await axios.get(`${API_URL}/api/products`, {
+      const token = await AsyncStorage.getItem('adminToken');
+      const response = await fetch(`${API}/api/products`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setProducts(response.data);
+      const data = await response.json();
+      setProducts(data.products || []);
     } catch (error) {
       console.error('Error fetching products:', error.message);
     }

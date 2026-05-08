@@ -14,6 +14,7 @@ router.post('/login', adminLogin);
 
 // Admin protected routes
 router.get('/dashboard', verifyAdmin, getDashboard);
+router.get('/stats', verifyAdmin, getDashboard);
 router.get('/price-logs', verifyAdmin, getPriceChangeLogs);
 router.get('/settings', verifyAdmin, getSettings);
 router.put('/settings', verifyAdmin, updateSettings);
