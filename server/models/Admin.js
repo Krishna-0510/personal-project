@@ -22,9 +22,13 @@ const adminSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  twoFactorSecret: {
+  totpSecret: {
     type: String,
     default: ''
+  },
+  totpEnabled: {
+    type: Boolean,
+    default: false
   },
   isActive: {
     type: Boolean,
