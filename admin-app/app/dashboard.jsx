@@ -73,6 +73,13 @@ export default function Dashboard() {
         </Pressable>
 
         <Pressable
+          style={[styles.actionButton, styles.totpButton]}
+          onPress={() => router.push('/totp-setup')}
+        >
+          <Text style={styles.actionButtonText}>🔐 Setup 2FA (TOTP)</Text>
+        </Pressable>
+
+        <Pressable
           style={[styles.actionButton, styles.logoutButton]}
           onPress={logout}
         >
@@ -123,6 +130,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
+  },
+  totpButton: {
+    backgroundColor: '#7c3aed',
   },
   logoutButton: {
     backgroundColor: '#dc2626',
