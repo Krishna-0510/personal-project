@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
-import auth from '@react-native-firebase/auth';
+//import auth from '@react-native-firebase/auth';
 import axios from 'axios';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
